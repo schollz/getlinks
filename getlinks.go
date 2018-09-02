@@ -2,6 +2,7 @@ package getlinks
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/url"
 
@@ -9,7 +10,7 @@ import (
 )
 
 // GetLinks returns all the links for the given bytes, using the urlString to fix relative domain names. If sameDomain is true, then it only returns links on the same domain.
-func GetLinks(htmlBytes []byte, urlString string, sameDomain ...bool) (linkList []string, err error) {
+func GetLinks(htmlBytes []byte, urlString string, sameDomain bool, allowQuery bool, allowFragment bool) (linkList []string, err error) {
 	parent, err := url.Parse(urlString)
 	if err != nil {
 		return
@@ -33,10 +34,18 @@ func GetLinks(htmlBytes []byte, urlString string, sameDomain ...bool) (linkList 
 					if err != nil {
 						break
 					}
-					if len(sameDomain) > 0 && sameDomain[0] && rel.Hostname() != parent.Hostname() {
+
+					cleanedUrl := fmt.Sprintf("%s://%s%s", rel.Scheme, rel.Host, rel.Path)
+					if rel.RawQuery != "" && allowQuery {
+						cleanedUrl += "?" + rel.RawQuery
+					}
+					if rel.Fragment != "" && allowFragment {
+						cleanedUrl += "#" + rel.Fragment
+					}
+					if sameDomain && rel.Hostname() != parent.Hostname() {
 						break
 					}
-					links[rel.String()] = struct{}{}
+					links[cleanedUrl] = struct{}{}
 				}
 			}
 		}

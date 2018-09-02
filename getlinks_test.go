@@ -1,6 +1,7 @@
 package getlinks
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,7 +21,7 @@ func BenchmarkGetLinks(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		GetLinks(bodyBytes, url, false)
+		GetLinks(bodyBytes, url, false, false, false)
 	}
 }
 
@@ -34,11 +35,26 @@ func TestGetLinks(t *testing.T) {
 	resp.Body.Close()
 
 	// get all links
-	links, err := GetLinks(bodyBytes, url)
+	links, err := GetLinks(bodyBytes, url, false, true, true)
 	assert.Nil(t, err)
 	assert.Equal(t, 470, len(links))
 
 	// get all links on the same domain
-	links, err = GetLinks(bodyBytes, url, true)
+	links, err = GetLinks(bodyBytes, url, true, true, true)
 	assert.Equal(t, 378, len(links))
+}
+
+func TestLinksHash(t *testing.T) {
+	urlString := "https://schollz.github.io/watercolor"
+	resp, err := http.Get(urlString)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	// get all links
+	links, err := GetLinks(bodyBytes, urlString, true, true, false)
+	assert.Nil(t, err)
+	fmt.Println(links)
 }
