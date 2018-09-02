@@ -17,10 +17,10 @@ func BenchmarkGetLinks(b *testing.B) {
 	}
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
-	linkgetter, err := New(url)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		linkgetter.GetLinks(bodyBytes)
+		GetLinks(bodyBytes, url, false)
 	}
 }
 
@@ -34,14 +34,11 @@ func TestGetLinks(t *testing.T) {
 	resp.Body.Close()
 
 	// get all links
-	linkgetter, err := New(url)
+	links, err := GetLinks(bodyBytes, url)
 	assert.Nil(t, err)
-	links := linkgetter.GetLinks(bodyBytes)
 	assert.Equal(t, 470, len(links))
 
 	// get all links on the same domain
-	linkgetter, err = New(url, true)
-	assert.Nil(t, err)
-	links = linkgetter.GetLinks(bodyBytes)
+	links, err = GetLinks(bodyBytes, url, true)
 	assert.Equal(t, 378, len(links))
 }

@@ -5,7 +5,7 @@
 [![coverage](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)](https://gocover.io/github.com/schollz/getlinks)
 [![godocs](https://godoc.org/github.com/schollz/getlinks?status.svg)](https://godoc.org/github.com/schollz/getlinks) 
 
-A very simple way to get links from web page
+A very simple way to get links from web page. This library uses the domain of the webpage to correctly parse relative links.
 
 ## Install
 
@@ -16,18 +16,14 @@ go get -u github.com/schollz/getlinks
 ## Usage 
 
 ```golang
-url := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
-resp, _ := http.Get(url)
+urlString := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
+resp, _ := http.Get(urlString)
 htmlBytes, _ := ioutil.ReadAll(resp.Body)
 resp.Body.Close()
 
 // get all links
-linkgetter, err := getlinks.New(url)
-if err != nil  {
-  panic(err)
-}
-links := linkgetter.GetLinks(htmlBytes)
-assert.Equal(t, 470, len(links))
+links, _ := getlinks.GetLinks(htmlBytes, urlString)
+fmt.Println(links)
 ```
 
 
