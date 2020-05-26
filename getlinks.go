@@ -11,8 +11,42 @@ import (
 	"golang.org/x/net/html"
 )
 
-// GetLinks returns all the links for the given bytes, using the urlString to fix relative domain names. If sameDomain is true, then it only returns links on the same domain.
-func GetLinks(htmlBytes []byte, urlString string, sameDomain bool, allowQuery bool, allowFragment bool) (linkList []string, err error) {
+type config struct {
+	sameDomain, disallowQuery, disallowFragment bool
+}
+
+// Option is the type all options need to adhere to
+type Option func(c *config)
+
+// OptionSameDomain determines whether to get from same domain
+func OptionSameDomain(sameDomain bool) Option {
+	return func(c *config) {
+		c.sameDomain = sameDomain
+	}
+}
+
+// OptionDisallowQuery will disallow queries
+func OptionDisallowQuery(disallowQuery bool) Option {
+	return func(c *config) {
+		c.disallowQuery = disallowQuery
+	}
+}
+
+// OptionDisallowFragment will disallow fragments
+func OptionDisallowFragment(disallowFragment bool) Option {
+	return func(c *config) {
+		c.disallowFragment = disallowFragment
+	}
+}
+
+// GetLinks returns all unique links, in order from the bytes, while setting
+// urls relative to the provided URL in the case there is no hostname.
+func GetLinks(htmlBytes []byte, urlString string, options ...Option) (linkList []string, err error) {
+	c := new(config)
+	for _, o := range options {
+		o(c)
+	}
+
 	parent, err := url.Parse(urlString)
 	if err != nil {
 		return
@@ -50,14 +84,20 @@ func GetLinks(htmlBytes []byte, urlString string, sameDomain bool, allowQuery bo
 						break
 					}
 
+					if rel.Scheme == "" {
+						rel.Scheme = "https"
+					}
 					cleanedUrl := fmt.Sprintf("%s://%s%s", rel.Scheme, rel.Host, rel.Path)
-					if rel.RawQuery != "" && allowQuery {
+					if strings.HasSuffix(attr.Val, "/") && !strings.HasSuffix(cleanedUrl, "/") {
+						cleanedUrl += "/"
+					}
+					if rel.RawQuery != "" && !c.disallowQuery {
 						cleanedUrl += "?" + rel.RawQuery
 					}
-					if rel.Fragment != "" && allowFragment {
+					if rel.Fragment != "" && !c.disallowFragment {
 						cleanedUrl += "#" + rel.Fragment
 					}
-					if sameDomain && rel.Hostname() != parent.Hostname() {
+					if c.sameDomain && rel.Hostname() != parent.Hostname() {
 						break
 					}
 					if _, ok := links[cleanedUrl]; !ok {

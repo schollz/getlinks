@@ -2,7 +2,7 @@
 
 [![travis](https://travis-ci.org/schollz/getlinks.svg?branch=master)](https://travis-ci.org/schollz/getlinks) 
 [![go report card](https://goreportcard.com/badge/github.com/schollz/getlinks)](https://goreportcard.com/report/github.com/schollz/getlinks) 
-[![coverage](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)](https://gocover.io/github.com/schollz/getlinks)
+[![coverage](https://img.shields.io/badge/coverage-92%25-brightgreen.svg)](https://gocover.io/github.com/schollz/getlinks)
 [![godocs](https://godoc.org/github.com/schollz/getlinks?status.svg)](https://godoc.org/github.com/schollz/getlinks) 
 
 A very simple way to get links from web page. This library uses the domain of the webpage to correctly parse relative links.

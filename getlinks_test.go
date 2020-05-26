@@ -3,89 +3,126 @@ package getlinks
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func BenchmarkGetLinks(b *testing.B) {
-	url := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+func ExampleGetLinks() {
+	urlString := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
+	resp, _ := http.Get(urlString)
+	htmlBytes, _ := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		GetLinks(bodyBytes, url, false, false, false)
-	}
+	// get all links
+	links, _ := GetLinks(htmlBytes, urlString)
+	fmt.Println(strings.Join(links[:3], ", "))
+	// Output: https://en.wikipedia.org/wiki/Help:Page_history, https://en.wikipedia.org/wiki/User:Turgidson, https://en.wikipedia.org/wiki/User_talk:Turgidson
 }
 
 func TestGetLinks(t *testing.T) {
-	url := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatal(err)
+	var flagtests = []struct {
+		u    string
+		href string
+		out  string
+	}{
+		{"https://a.com", "/1", "https://a.com/1"},
+		{"https://a.com", "/1?q=1#2", "https://a.com/1?q=1#2"},
+		{"https://a.com/test/", "/1", "https://a.com/1"},
+		{"https://a.com/2.html", "/1", "https://a.com/1"},
+		{"https://a.com/test/something", "../1", "https://a.com/test/1"},
+		{"https://a.com/test/something", "../1/", "https://a.com/test/1/"},
+		{"https://a.com/test", "1", "https://a.com/test/1"},
+		{"https://a.com/test/something", "https://a.com/2", "https://a.com/2"},
+		{"https://a.com/2", "https://somethingelse.com/1", "https://somethingelse.com/1"},
 	}
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
 
-	// get all links
-	links, err := GetLinks(bodyBytes, url, false, true, true)
-	assert.Nil(t, err)
-	assert.Equal(t, 470, len(links))
+	for _, tt := range flagtests {
+		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u)
+		if err != nil {
+			t.Errorf("%+v: %s", tt, err)
+		}
+		if links[0] != tt.out {
+			t.Errorf("%+v: actually %s", tt, links[0])
+		}
+	}
+}
+func TestSameOrigin(t *testing.T) {
+	var flagtests = []struct {
+		u    string
+		href string
+	}{
+		{"https://a.com/2", "https://somethingelse.com/1"},
+	}
 
-	// get all links on the same domain
-	links, err = GetLinks(bodyBytes, url, true, true, true)
-	assert.Equal(t, 378, len(links))
+	for _, tt := range flagtests {
+		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionSameDomain(true))
+		if err != nil {
+			t.Errorf("%+v: %s", tt, err)
+		}
+		if len(links) > 0 {
+			t.Errorf("got links when should have not: %+v", links)
+		}
+	}
 }
 
-func TestLinksHash(t *testing.T) {
-	urlString := "https://schollz.github.io/watercolor"
-	resp, err := http.Get(urlString)
-	if err != nil {
-		log.Fatal(err)
+func TestGetLinksNoFragment(t *testing.T) {
+	var flagtests = []struct {
+		u    string
+		href string
+		out  string
+	}{
+		{"https://a.com", "/1?q=1#2", "https://a.com/1?q=1"},
 	}
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
 
-	// get all links
-	links, err := GetLinks(bodyBytes, urlString, true, true, false)
-	assert.Nil(t, err)
-	fmt.Println(links)
+	for _, tt := range flagtests {
+		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowFragment(true))
+		if err != nil {
+			t.Errorf("%+v: %s", tt, err)
+		}
+		if links[0] != tt.out {
+			t.Errorf("%+v: actually %s", tt, links[0])
+		}
+	}
+
 }
 
-func TestGetLinksAll(t *testing.T) {
-	b := []byte(`
-<html>
-<head>
-</head>
-<body>
-<a href="./test.html">test1</a>
-<a href="/test.html">test1</a>
-<a href="test.html">test1</a>
-<a href="./test/">test1</a>
-<a href="https://somethingelse.com">test1</a>
-<a href="https://test.com/test2/test?q=hi#world">test1</a>
-</body>
-</html>`)
-	// get all links
-	links, err := GetLinks(b, "https://test.com/test", false, true, true)
-	assert.Nil(t, err)
-	assert.Equal(t,
-		`https://test.com/test/test.html|https://test.com/test.html|https://test.com/test/test|https://somethingelse.com|https://test.com/test2/test?q=hi#world`,
-		strings.Join(links, "|"),
-	)
+func TestGetLinksNoQuery(t *testing.T) {
+	var flagtests = []struct {
+		u    string
+		href string
+		out  string
+	}{
+		{"https://a.com", "/1?q=1#2", "https://a.com/1#2"},
+	}
 
-	links, err = GetLinks(b, "https://test.com/test", true, false, false)
-	assert.Nil(t, err)
-	assert.Equal(t,
-		`https://test.com/test/test.html|https://test.com/test.html|https://test.com/test/test|https://test.com/test2/test`,
-		strings.Join(links, "|"),
-	)
+	for _, tt := range flagtests {
+		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowQuery(true))
+		if err != nil {
+			t.Errorf("%+v: %s", tt, err)
+		}
+		if links[0] != tt.out {
+			t.Errorf("%+v: actually %s", tt, links[0])
+		}
+	}
+}
+
+func TestGetLinksNoQueryNoFragment(t *testing.T) {
+	var flagtests = []struct {
+		u    string
+		href string
+		out  string
+	}{
+		{"https://a.com", "/1/?q=1#2", "https://a.com/1/"},
+	}
+
+	for _, tt := range flagtests {
+		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowQuery(true), OptionDisallowFragment(true))
+		if err != nil {
+			t.Errorf("%+v: %s", tt, err)
+		}
+		if links[0] != tt.out {
+			t.Errorf("%+v: actually %s", tt, links[0])
+		}
+	}
 }
