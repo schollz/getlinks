@@ -3,7 +3,6 @@ package getlinks
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"path"
 	"strings"
@@ -53,7 +52,7 @@ func GetLinks(htmlBytes []byte, urlString string, options ...Option) (linkList [
 	}
 
 	links := make(map[string]int)
-	z := html.NewTokenizer(ioutil.NopCloser(bytes.NewBuffer(htmlBytes)))
+	z := html.NewTokenizer(bytes.NewReader(htmlBytes))
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
