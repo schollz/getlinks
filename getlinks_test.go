@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,4 +58,34 @@ func TestLinksHash(t *testing.T) {
 	links, err := GetLinks(bodyBytes, urlString, true, true, false)
 	assert.Nil(t, err)
 	fmt.Println(links)
+}
+
+func TestGetLinksAll(t *testing.T) {
+	b := []byte(`
+<html>
+<head>
+</head>
+<body>
+<a href="./test.html">test1</a>
+<a href="/test.html">test1</a>
+<a href="test.html">test1</a>
+<a href="./test/">test1</a>
+<a href="https://somethingelse.com">test1</a>
+<a href="https://test.com/test2/test?q=hi#world">test1</a>
+</body>
+</html>`)
+	// get all links
+	links, err := GetLinks(b, "https://test.com/test", false, true, true)
+	assert.Nil(t, err)
+	assert.Equal(t,
+		`https://test.com/test/test.html|https://test.com/test.html|https://test.com/test/test|https://somethingelse.com|https://test.com/test2/test?q=hi#world`,
+		strings.Join(links, "|"),
+	)
+
+	links, err = GetLinks(b, "https://test.com/test", true, false, false)
+	assert.Nil(t, err)
+	assert.Equal(t,
+		`https://test.com/test/test.html|https://test.com/test.html|https://test.com/test/test|https://test.com/test2/test`,
+		strings.Join(links, "|"),
+	)
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"path"
+	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -16,7 +18,7 @@ func GetLinks(htmlBytes []byte, urlString string, sameDomain bool, allowQuery bo
 		return
 	}
 
-	links := make(map[string]struct{})
+	links := make(map[string]int)
 	z := html.NewTokenizer(ioutil.NopCloser(bytes.NewBuffer(htmlBytes)))
 	for {
 		tt := z.Next()
@@ -30,7 +32,20 @@ func GetLinks(htmlBytes []byte, urlString string, sameDomain bool, allowQuery bo
 			}
 			for _, attr := range token.Attr {
 				if attr.Key == "href" {
-					rel, err := parent.Parse(attr.Val)
+					parse1, err := url.Parse(attr.Val)
+					if err != nil {
+						break
+					}
+					var rel *url.URL
+					if parse1.Hostname() == "" {
+						if strings.HasPrefix(parse1.Path, "/") {
+							rel, err = parent.Parse(attr.Val)
+						} else {
+							rel, err = parent.Parse(path.Join(parent.Path, attr.Val))
+						}
+					} else {
+						rel = parse1
+					}
 					if err != nil {
 						break
 					}
@@ -45,17 +60,21 @@ func GetLinks(htmlBytes []byte, urlString string, sameDomain bool, allowQuery bo
 					if sameDomain && rel.Hostname() != parent.Hostname() {
 						break
 					}
-					links[cleanedUrl] = struct{}{}
+					if _, ok := links[cleanedUrl]; !ok {
+						links[cleanedUrl] = len(links)
+					}
 				}
 			}
 		}
 	}
 
+	if len(links) == 0 {
+		return
+	}
+
 	linkList = make([]string, len(links))
-	i := 0
 	for link := range links {
-		linkList[i] = link
-		i++
+		linkList[links[link]] = link
 	}
 	return
 }
