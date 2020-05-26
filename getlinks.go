@@ -1,8 +1,8 @@
 package getlinks
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"net/url"
 	"path"
 	"strings"
@@ -40,7 +40,7 @@ func OptionDisallowFragment(disallowFragment bool) Option {
 
 // GetLinks returns all unique links, in order from the bytes, while setting
 // urls relative to the provided URL in the case there is no hostname.
-func GetLinks(htmlBytes []byte, urlString string, options ...Option) (linkList []string, err error) {
+func GetLinks(r io.Reader, urlString string, options ...Option) (linkList []string, err error) {
 	c := new(config)
 	for _, o := range options {
 		o(c)
@@ -52,7 +52,7 @@ func GetLinks(htmlBytes []byte, urlString string, options ...Option) (linkList [
 	}
 
 	links := make(map[string]int)
-	z := html.NewTokenizer(bytes.NewReader(htmlBytes))
+	z := html.NewTokenizer(r)
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
@@ -106,6 +106,7 @@ func GetLinks(htmlBytes []byte, urlString string, options ...Option) (linkList [
 			}
 		}
 	}
+	err = nil
 
 	if len(links) == 0 {
 		return

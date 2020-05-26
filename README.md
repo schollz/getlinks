@@ -18,11 +18,9 @@ go get -u github.com/schollz/getlinks
 ```golang
 urlString := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
 resp, _ := http.Get(urlString)
-htmlBytes, _ := ioutil.ReadAll(resp.Body)
-resp.Body.Close()
+defer resp.Body.Close()
 
-// get all links
-links, _ := getlinks.GetLinks(htmlBytes, urlString)
+links, _ := getlinks.GetLinks(resp.Body, urlString)
 fmt.Println(links)
 ```
 

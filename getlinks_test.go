@@ -2,7 +2,6 @@ package getlinks
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -11,11 +10,9 @@ import (
 func ExampleGetLinks() {
 	urlString := "https://en.wikipedia.org/w/index.php?title=Pauli_exclusion_principle&oldid=854810355"
 	resp, _ := http.Get(urlString)
-	htmlBytes, _ := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	defer resp.Body.Close()
 
-	// get all links
-	links, _ := GetLinks(htmlBytes, urlString)
+	links, _ := GetLinks(resp.Body, urlString)
 	fmt.Println(strings.Join(links[:3], ", "))
 	// Output: https://en.wikipedia.org/wiki/Help:Page_history, https://en.wikipedia.org/wiki/User:Turgidson, https://en.wikipedia.org/wiki/User_talk:Turgidson
 }
@@ -38,7 +35,7 @@ func TestGetLinks(t *testing.T) {
 	}
 
 	for _, tt := range flagtests {
-		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u)
+		links, err := GetLinks(strings.NewReader(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u)
 		if err != nil {
 			t.Errorf("%+v: %s", tt, err)
 		}
@@ -47,6 +44,7 @@ func TestGetLinks(t *testing.T) {
 		}
 	}
 }
+
 func TestSameOrigin(t *testing.T) {
 	var flagtests = []struct {
 		u    string
@@ -56,7 +54,7 @@ func TestSameOrigin(t *testing.T) {
 	}
 
 	for _, tt := range flagtests {
-		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionSameDomain(true))
+		links, err := GetLinks(strings.NewReader(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionSameDomain(true))
 		if err != nil {
 			t.Errorf("%+v: %s", tt, err)
 		}
@@ -76,7 +74,7 @@ func TestGetLinksNoFragment(t *testing.T) {
 	}
 
 	for _, tt := range flagtests {
-		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowFragment(true))
+		links, err := GetLinks(strings.NewReader(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowFragment(true))
 		if err != nil {
 			t.Errorf("%+v: %s", tt, err)
 		}
@@ -97,7 +95,7 @@ func TestGetLinksNoQuery(t *testing.T) {
 	}
 
 	for _, tt := range flagtests {
-		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowQuery(true))
+		links, err := GetLinks(strings.NewReader(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowQuery(true))
 		if err != nil {
 			t.Errorf("%+v: %s", tt, err)
 		}
@@ -117,7 +115,7 @@ func TestGetLinksNoQueryNoFragment(t *testing.T) {
 	}
 
 	for _, tt := range flagtests {
-		links, err := GetLinks([]byte(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowQuery(true), OptionDisallowFragment(true))
+		links, err := GetLinks(strings.NewReader(fmt.Sprintf("<a href='%s'>test</a>", tt.href)), tt.u, OptionDisallowQuery(true), OptionDisallowFragment(true))
 		if err != nil {
 			t.Errorf("%+v: %s", tt, err)
 		}
